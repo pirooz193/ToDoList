@@ -4,6 +4,7 @@ import 'dart:ui';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:task_list/data.dart';
@@ -26,6 +27,9 @@ final primaryColor = Color(0xff794CFF);
 final primaryContainer = Color(0xff5C0AFF);
 final primaryTextColor = Color(0xff1D2830);
 final secondaryTextColor = Color(0xffAFBED0);
+final Color noramlPriorityColor = Color(0xffF09819);
+final Color lowPriorityColor = Color(0xff3BE1F1);
+final Color highPriorityColor = primaryColor;
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -65,6 +69,7 @@ class MyApp extends StatelessWidget {
 }
 
 class HomeScreen extends StatelessWidget {
+  final TextEditingController controller = TextEditingController();
   @override
   Widget build(BuildContext context) {
     final themeData = Theme.of(context);
@@ -75,7 +80,9 @@ class HomeScreen extends StatelessWidget {
         onPressed: () {
           Navigator.of(context).push(
             MaterialPageRoute(
-              builder: (context) => EditTaskScreen(),
+              builder: (context) => EditTaskScreen(
+                task: TaskEntity(),
+              ),
             ),
           );
         },
@@ -134,8 +141,9 @@ class HomeScreen extends StatelessWidget {
                       )
                     ],
                   ),
-                  child: const TextField(
-                    decoration: InputDecoration(
+                  child: TextField(
+                    controller: controller,
+                    decoration: const InputDecoration(
                       prefixIcon: Icon(
                         CupertinoIcons.search,
                       ),
@@ -149,59 +157,66 @@ class HomeScreen extends StatelessWidget {
               child: ValueListenableBuilder<Box<TaskEntity>>(
                 valueListenable: box.listenable(),
                 builder: (context, box, child) {
-                  return ListView.builder(
-                    padding: EdgeInsets.fromLTRB(16, 16, 16, 100),
-                    itemCount: box.values.length + 1,
-                    itemBuilder: ((context, index) {
-                      if (index == 0) {
-                        return Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Today',
-                                  style: themeData.textTheme.headline6!
-                                      .apply(fontSizeFactor: 0.8),
-                                ),
-                                Container(
-                                  margin: EdgeInsets.only(top: 4),
-                                  width: 70,
-                                  height: 3,
-                                  decoration: BoxDecoration(
-                                    color: themeData.colorScheme.primary,
-                                    borderRadius: BorderRadius.circular(1.5),
+                  if (box.isNotEmpty) {
+                    return ListView.builder(
+                      padding: EdgeInsets.fromLTRB(16, 16, 16, 100),
+                      itemCount: box.values.length + 1,
+                      itemBuilder: ((context, index) {
+                        if (index == 0) {
+                          return Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Today',
+                                    style: themeData.textTheme.headline6!
+                                        .apply(fontSizeFactor: 0.8),
                                   ),
-                                ),
-                              ],
-                            ),
-                            MaterialButton(
-                              onPressed: () {},
-                              textColor: secondaryTextColor,
-                              elevation: 0,
-                              color: Color(0xffEAEFF5),
-                              child: Row(
-                                children: const [
-                                  Text("Delete All"),
-                                  SizedBox(
-                                    width: 4,
+                                  Container(
+                                    margin: EdgeInsets.only(top: 4),
+                                    width: 70,
+                                    height: 3,
+                                    decoration: BoxDecoration(
+                                      color: themeData.colorScheme.primary,
+                                      borderRadius: BorderRadius.circular(1.5),
+                                    ),
                                   ),
-                                  Icon(
-                                    CupertinoIcons.delete_solid,
-                                    size: 18,
-                                  )
                                 ],
                               ),
-                            ),
-                          ],
-                        );
-                      } else {
-                        final TaskEntity task = box.values.toList()[index - 1];
-                        return TaskItem(task: task);
-                      }
-                    }),
-                  );
+                              MaterialButton(
+                                onPressed: () {
+                                  box.clear();
+                                },
+                                textColor: secondaryTextColor,
+                                elevation: 0,
+                                color: Color(0xffEAEFF5),
+                                child: Row(
+                                  children: const [
+                                    Text("Delete All"),
+                                    SizedBox(
+                                      width: 4,
+                                    ),
+                                    Icon(
+                                      CupertinoIcons.delete_solid,
+                                      size: 18,
+                                    )
+                                  ],
+                                ),
+                              ),
+                            ],
+                          );
+                        } else {
+                          final TaskEntity task =
+                              box.values.toList()[index - 1];
+                          return TaskItem(task: task);
+                        }
+                      }),
+                    );
+                  } else {
+                    return const EmptyState();
+                  }
                 },
               ),
             ),
@@ -212,7 +227,30 @@ class HomeScreen extends StatelessWidget {
   }
 }
 
+class EmptyState extends StatelessWidget {
+  const EmptyState({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        SvgPicture.asset(
+          'assets/empty_state.svg',
+          width: 120,
+        ),
+        const SizedBox(
+          height: 12,
+        ),
+        const Text('Your task is empty !'),
+      ],
+    );
+  }
+}
+
 class TaskItem extends StatefulWidget {
+  static const double height = 84;
+  static const double borderRadius = 8;
   const TaskItem({
     Key? key,
     required this.task,
@@ -228,23 +266,50 @@ class _TaskItemState extends State<TaskItem> {
   @override
   Widget build(BuildContext context) {
     final themeData = Theme.of(context);
+    final priorityColor;
+    switch (widget.task.priority) {
+      case Priority.low:
+        priorityColor = lowPriorityColor;
+        break;
+      case Priority.normal:
+        priorityColor = noramlPriorityColor;
+        break;
+      case Priority.high:
+        priorityColor = highPriorityColor;
+        break;
+    }
+
     return InkWell(
       onTap: () {
         setState(() {
-          widget.task.isCompleted = !widget.task.isCompleted;
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => EditTaskScreen(task: widget.task),
+            ),
+          );
         });
+      },
+      onLongPress: () {
+        widget.task.delete();
       },
       child: Container(
         margin: EdgeInsets.only(top: 8),
-        padding: EdgeInsets.only(left: 16, right: 16),
-        height: 84,
+        padding: EdgeInsets.only(left: 16),
+        height: TaskItem.height,
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(TaskItem.borderRadius),
           color: themeData.colorScheme.surface,
         ),
         child: Row(
           children: [
-            MyCheckBox(value: widget.task.isCompleted),
+            MyCheckBox(
+              onTap: () {
+                setState(() {
+                  widget.task.isCompleted = !widget.task.isCompleted;
+                });
+              },
+              value: widget.task.isCompleted,
+            ),
             SizedBox(
               width: 16,
             ),
@@ -260,6 +325,20 @@ class _TaskItemState extends State<TaskItem> {
                         : null),
               ),
             ),
+            SizedBox(
+              width: 8,
+            ),
+            Container(
+              width: 4,
+              height: 84,
+              decoration: BoxDecoration(
+                color: priorityColor,
+                borderRadius: BorderRadius.only(
+                  topRight: Radius.circular(TaskItem.borderRadius),
+                  bottomRight: Radius.circular(TaskItem.borderRadius),
+                ),
+              ),
+            ),
           ],
         ),
       ),
@@ -269,32 +348,36 @@ class _TaskItemState extends State<TaskItem> {
 
 class MyCheckBox extends StatelessWidget {
   final bool value;
+  final GestureTapCallback onTap;
 
-  const MyCheckBox({super.key, required this.value});
+  const MyCheckBox({super.key, required this.value, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
     final themeData = Theme.of(context);
-    return Container(
-      width: 24,
-      height: 24,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        border: !value
-            ? Border.all(
-                color: secondaryTextColor,
-                width: 2,
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        width: 24,
+        height: 24,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          border: !value
+              ? Border.all(
+                  color: secondaryTextColor,
+                  width: 2,
+                )
+              : null,
+          color: value ? primaryColor : null,
+        ),
+        child: value
+            ? Icon(
+                CupertinoIcons.check_mark,
+                color: themeData.colorScheme.onPrimary,
+                size: 16,
               )
             : null,
-        color: value ? primaryColor : null,
       ),
-      child: value
-          ? Icon(
-              CupertinoIcons.check_mark,
-              color: themeData.colorScheme.onPrimary,
-              size: 16,
-            )
-          : null,
     );
   }
 }
