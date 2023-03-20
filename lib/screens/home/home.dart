@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:task_list/data/data.dart';
 import 'package:task_list/data/repo/repository.dart';
 import 'package:task_list/main.dart';
+import 'package:task_list/screens/edit/cubit/edittask_cubit.dart';
 import 'package:task_list/screens/edit/edit.dart';
 import 'package:task_list/screens/home/bloc/task_list_bloc.dart';
 import 'package:task_list/widgets.dart';
@@ -23,8 +24,10 @@ class HomeScreen extends StatelessWidget {
         onPressed: () {
           Navigator.of(context).push(
             MaterialPageRoute(
-              builder: (context) => EditTaskScreen(
-                task: TaskEntity(),
+              builder: (context) => BlocProvider<EditTaskCubit>(
+                create: (context) => EditTaskCubit(
+                    TaskEntity(), context.read<Repository<TaskEntity>>()),
+                child: EditTaskScreen(),
               ),
             ),
           );
@@ -252,7 +255,11 @@ class _TaskItemState extends State<TaskItem> {
         setState(() {
           Navigator.of(context).push(
             MaterialPageRoute(
-              builder: (context) => EditTaskScreen(task: widget.task),
+              builder: (context) => BlocProvider<EditTaskCubit>(
+                create: (context) => EditTaskCubit(
+                    widget.task, context.read<Repository<TaskEntity>>()),
+                child: const EditTaskScreen(),
+              ),
             ),
           );
         });
